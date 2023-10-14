@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Room</title>
+</head>
+<body>
+    <h1>Chat Room</h1>
+    <div id="messages"></div>
+    <input id="messageInput" type="text">
+    <button id="sendButton">Send</button>
+
+<script>
+    // Initialize chat websocket and UI elements
+    const ws = new WebSocket('ws://localhost:8000/ws');
+    const messagesDiv = document.getElementById('messages');
+    const sendButton = document.getElementById('sendButton');
+    const messageInput = document.getElementById("messageInput");
+
+    // Handle incoming messages
+    ws.onmessage = function(event) {
+        let msgDiv = document.createElement('div');
+        msgDiv.textContent = event.data;
+        messagesDiv.appendChild(msgDiv);
+    };
+
+    // Send message on send button click
+    sendButton.onclick = function() {
+        const message = messageInput.value;
+        ws.send(message);
+        messageInput.value = '';
+    };
+</script>
+</body>
+</html>

@@ -27,8 +27,6 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-
-
 @app.get("/")
 def root(request: Request):
     return templates.TemplateResponse("home.html", {"request": request})

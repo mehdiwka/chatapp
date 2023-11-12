@@ -14,9 +14,46 @@ To start the application:
     pip install -r requirements
     ```
 
-3. Start the FastAPI application with Uvicorn:
+3. Set up your database migrations by installing Alembic, a database migration tool:
+
+    ```bash
+    pip install alembic
+    ```
+
+    Then, initialize your project for Alembic:
+
+    ```bash
+    alembic init alembic
+    ```
+
+    Edit your `alembic.ini` file to add your database URL:
+
+    ```ini
+    sqlalchemy.url = driver://user:pass@localhost/dbname
+    ```
+
+    Replace `driver://user:pass@localhost/dbname` with your actual SQLAlchemy URL.
+
+    In `alembic/env.py`, update the `target_metadata` variable:
+
+    ```python
+    from myapp.mymodule import myBase
+    target_metadata = myBase.metadata
+    ```
+
+    Make sure `myBase` is your SQLAlchemy `Base` object used to declare your model classes.
+
+    Then, generate your Alembic migration:
+
+    ```bash
+    alembic revision --autogenerate -m "Created tables" 
+    alembic upgrade head  # Apply the migration
+    ```
+
+4. Start the FastAPI application with Uvicorn:
 
     ```bash
     uvicorn main:app --reload
     ```
-
+    
+Please feel free to modify or remove any instructions according to your application's requirements.

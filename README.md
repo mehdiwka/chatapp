@@ -38,7 +38,7 @@ To start the application:
 
     ```python
     from models import Base
-    target_metadata = myBase.metadata
+    target_metadata = Base.metadata
     ```
 
     Make sure `myBase` is your SQLAlchemy `Base` object used to declare your model classes.

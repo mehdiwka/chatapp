@@ -29,7 +29,7 @@ To start the application:
     Edit your `alembic.ini` file to add your database URL:
 
     ```ini
-    sqlalchemy.url = driver://user:pass@localhost/dbname
+    sqlalchemy.url = postgresql+psycopg2://user:pass@localhost/dbname
     ```
 
     Replace `driver://user:pass@localhost/dbname` with your actual SQLAlchemy URL.
@@ -37,7 +37,7 @@ To start the application:
     In `alembic/env.py`, update the `target_metadata` variable:
 
     ```python
-    from myapp.mymodule import myBase
+    from models import Base
     target_metadata = myBase.metadata
     ```
 

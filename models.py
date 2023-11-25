@@ -8,10 +8,10 @@ from database import Base
 class User(Base):
     __tablename__ = 'users'
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    number = Column(String, nullable=False)
-    username = Column(String, nullable=False)
-    name = Column(String(255), nullable=False)
-
+    number = Column(String, nullable=False, unique=True)
+    hashed_password = Column(String, nullable=True)
+    username = Column(String, nullable=True, unique=True)
+    name = Column(String(255), nullable=True)
 
 class Conversation(Base):
     __tablename__ = 'conversations'

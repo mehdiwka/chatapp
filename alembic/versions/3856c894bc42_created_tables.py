@@ -1,8 +1,8 @@
-"""Initial migration
+"""Created tables
 
-Revision ID: d1f655e1cc65
+Revision ID: 3856c894bc42
 Revises: 
-Create Date: 2023-11-12 17:38:35.809386
+Create Date: 2023-11-25 15:14:41.148988
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'd1f655e1cc65'
+revision: str = '3856c894bc42'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -23,9 +23,12 @@ def upgrade() -> None:
     op.create_table('users',
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
     sa.Column('number', sa.String(), nullable=False),
-    sa.Column('username', sa.String(), nullable=False),
-    sa.Column('name', sa.String(length=255), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.Column('hashed_password', sa.String(), nullable=True),
+    sa.Column('username', sa.String(), nullable=True),
+    sa.Column('name', sa.String(length=255), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('number'),
+    sa.UniqueConstraint('username')
     )
     op.create_table('conversations',
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),

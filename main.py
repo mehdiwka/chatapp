@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
 from models import User
-# from schemas import UserIn
+# from schemas import Login
 from database import get_db_session
 from routers import user
 app = FastAPI()
@@ -28,7 +28,7 @@ async def shutdown():
 
 
 # @app.post("/users/")
-# async def create_user(user: UserIn, db: AsyncSession = Depends(get_db_session)):
+# async def create_user(user: Login, db: AsyncSession = Depends(get_db_session)):
 #     async with db as db_session:
 #         try:
 #             db_user = User(number=user.number, username=user.username, name=user.name)

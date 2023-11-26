@@ -1,120 +1,113 @@
-from datetime import timedelta, datetime
+import secrets
+from typing import List
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from fastapi import APIRouter, Depends
+from fastapi import HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from database import get_db_session
-from models import User
-from .schemas import UserIn, UserSetPassword, UserSetProfile, UserForgetPassword
+from models import User, UserSession
+from .schemas import Login, UserSetPassword, UserSetProfile, UserForgetPassword, Register, SessionBase
 
 router = APIRouter()
-
-SECRET_KEY = "k4M/NBCzlNcpG0w3ZyRgOyEbx67t6ebr3g2Sw1Tl1ReRCI/OoShQ0HRH/JwPJKJz"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+oauth2_scheme = HTTPBearer()
 
 
-def authenticate_user(db, number: str, password: str):
-    user = db.execute(select(User).filter(User.number == number)).scalars().one()
-    if not user:
-        return False
-    if bcrypt.checkpw(password.encode(), user.hashed_password.decode()):
-        return False
-    return user
+def create_session_token():
+    return secrets.token_hex(16)
 
 
-def create_access_token(data: dict, expires_delta: timedelta = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+def get_current_user_token(token: HTTPAuthorizationCredentials = Depends(oauth2_scheme)) -> str:
+    return token.credentials
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+async def get_current_user(db: AsyncSession = Depends(get_db_session),
+                           session_token: str = Depends(get_current_user_token)):
+    async with db as session:  # this context manager ensures the session is closed after use
+        user_session_result = await session.execute(
+            select(UserSession).where(UserSession.session_token == session_token))
+        user_session = user_session_result.scalars().first()
+        if user_session:
+            user_result = await session.execute(select(User).where(User.id == user_session.user_id))
+            user = user_result.scalars().first()
+        else:
+            user = None
 
-
-async def get_current_user(db: AsyncSession = Depends(get_db_session), token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        number: str = payload.get("sub")
-        if number is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-    user = db.execute(select(User).filter(User.number == number)).scalars().first()
     if user is None:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 
 @router.post('/register')
-async def register_new_user(user_in: UserIn, db: AsyncSession = Depends(get_db_session)):
-    if user_in.otp_or_password != "1234":
+async def register_new_user(user_in: Register, db: AsyncSession = Depends(get_db_session)):
+    if user_in.otp != "1234":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect OTP.")
     async with db as session:
         user_result = await session.execute(select(User).where(User.number == user_in.number))
         user = user_result.scalar_one_or_none()
         if user:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Number already registered.")
+            return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Number already registered.")
         user = User(number=user_in.number)
         session.add(user)
+        await session.flush()
+        session_token = create_session_token()
+        user_session = UserSession(user_id=user.id, session_token=session_token)
+        session.add(user_session)
         await session.commit()
-    return {"status": "Success"}
+
+    return {"status": "Success", "session_token": session_token}
 
 
 @router.post('/login')
-async def login(user_in: UserIn, db: AsyncSession = Depends(get_db_session)):
-    user = authenticate_user(db, user_in.number, user_in.otp_or_password)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect OTP or password")
-
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(data={"sub": user.number}, expires_delta=access_token_expires)
-
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
-@router.post('/set_password')
-async def set_password(user_in: UserSetPassword, current_user: User = Depends(get_current_user),
-                       db: AsyncSession = Depends(get_db_session)):
+async def login(user_in: Login):
     if user_in.otp != "1234":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect OTP.")
 
-    hashed_password = bcrypt.hashpw(user_in.new_password.encode('utf-8'), bcrypt.gensalt())
-    current_user.hashed_password = hashed_password
+    async with get_db_session() as db:
+        user_result = await db.execute(select(User).filter(User.number == user_in.number))
+        user = user_result.scalar_one_or_none()
 
-    await db.commit()
+        if not user or not bcrypt.checkpw(user_in.password.encode(), user.hashed_password.encode("utf-8")):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect OTP or password")
+
+        session_token = create_session_token()
+        user_session = UserSession(user_id=user.id, session_token=session_token)
+        db.add(user_session)
+        await db.commit()
+    return {"session_token": session_token}
+
+
+@router.post('/set_password')
+async def set_password(user_in: UserSetPassword, current_user: User = Depends(get_current_user)):
+    async with get_db_session() as db:
+        hashed_password = bcrypt.hashpw(user_in.new_password.encode('utf-8'), bcrypt.gensalt())
+        current_user.hashed_password = hashed_password.decode()
+
+        db.add(current_user)
+        await db.flush()
+        await db.commit()
+
     return {"status": "Success"}
 
 
 @router.post('/set_profile')
-async def set_profile(user_in: UserSetProfile, current_user: User = Depends(get_current_user),
-                      db: AsyncSession = Depends(get_db_session)):
-    user = await db.execute(select(User).where(User.number == user_in.number))
-    if not user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User not found.")
-
-    user_with_same_username = await db.execute(select(User).where(User.username == user_in.username))
-    if user_with_same_username.first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username is already taken.")
-
-    current_user.username = user_in.username
-    current_user.name = user_in.name
-
-    await db.commit()
+async def set_profile(user_in: UserSetProfile, current_user: User = Depends(get_current_user)):
+    async with get_db_session() as db:
+        user_with_same_username_result = await db.execute(select(User).where(User.username == user_in.username))
+        user_with_same_username = user_with_same_username_result.scalar_one_or_none()
+        if user_with_same_username:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username is already taken.")
+        current_user.username = user_in.username
+        current_user.name = user_in.name
+        db.add(current_user)
+        await db.commit()
     return {"status": "Success"}
 
 
@@ -123,9 +116,27 @@ async def forget_password(user_in: UserForgetPassword, db: AsyncSession = Depend
     user = await db.execute(select(User).where(User.number == user_in.number))
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User not found.")
-
-    hashed_password = bcrypt.hashpw(user_in.new_password.encode('utf-8'), bcrypt.gensalt())
-    user.hashed_password = hashed_password
+    user.hashed_password = bcrypt.hashpw(user_in.new_password.encode('utf-8'), bcrypt.gensalt())
 
     await db.commit()
+    return {"status": "Success"}
+
+
+@router.get("/user/{user_id}/sessions", response_model=List[str])
+async def get_user_sessions(user_id: int, current_user: User = Depends(get_current_user)):
+    async with get_db_session() as db:
+        result = await db.execute(select(UserSession.session_token).where(UserSession.user_id == user_id))
+        session_tokens = result.scalars().all()
+        return session_tokens
+
+
+@router.delete("/session/{session_token}")
+async def delete_session(session_token: str, current_user: User = Depends(get_current_user)):
+    async with get_db_session() as db:
+        result = await db.execute(select(UserSession).where(UserSession.session_token == session_token))
+        session = result.scalar_one_or_none()
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        await db.delete(session)
+        await db.commit()
     return {"status": "Success"}

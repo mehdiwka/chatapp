@@ -1,29 +1,51 @@
-from pydantic import BaseModel
+import datetime
+
+from pydantic import BaseModel, field_validator
 from typing import Optional
 
 
-class UserIn(BaseModel):
+class UserBase(BaseModel):
     number: str
-    otp_or_password: str
+
+    @field_validator("number")
+    def validate_iran_phone_number(cls, values):
+        number = values
+        if number and len(number) == 11 and number.isdigit():
+            return values
+        raise ValueError('Invalid phone number')
 
 
-class UserVerifyPassword(BaseModel):
-    number: str
+class Register(UserBase):
+    otp: str = None
+
+
+class Login(UserBase):
+    otp: str = None
     password: str
 
 
-class UserSetPassword(BaseModel):
-    number: str
+class UserVerifyPassword(UserBase):
+    password: str
+
+
+class UserSetPassword(UserBase):
     new_password: str
-    otp: str
 
 
-class UserSetProfile(BaseModel):
-    number: str
+class UserSetProfile(UserBase):
     password: str
     username: str
     name: str
 
 
-class UserForgetPassword(BaseModel):
-    number: str
+class UserForgetPassword(UserBase):
+    pass
+class SessionBase(BaseModel):
+    id: int
+    user_id: int
+    device_info: Optional[str]
+    session_token: str
+    created_at: Optional[datetime.datetime]
+
+    class Config:
+        orm_mode = True

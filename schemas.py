@@ -1,7 +1,7 @@
 # from pydantic import BaseModel
 #
 #
-# class UserIn(BaseModel):
+# class Login(BaseModel):
 #     number: str
 #     username: str
 #     name: str

@@ -1,18 +1,11 @@
 from typing import List
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
-from database import engine, get_db_session, Base
-from fastapi.concurrency import run_in_threadpool
-from sqlalchemy.exc import SQLAlchemyError
-from routers import user
 
-from fastapi import FastAPI, HTTPException, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.exc import IntegrityError
-from models import User
-# from schemas import Login
-from database import get_db_session
-from routers import user
+from fastapi import FastAPI
+from fastapi import WebSocket, WebSocketDisconnect
+
+from database import engine, Base
+from user import  user
+
 app = FastAPI()
 
 app.include_router(user.router)
@@ -26,19 +19,6 @@ async def startup():
 async def shutdown():
     await engine.disconnect()
 
-
-# @app.post("/users/")
-# async def create_user(user: Login, db: AsyncSession = Depends(get_db_session)):
-#     async with db as db_session:
-#         try:
-#             db_user = User(number=user.number, username=user.username, name=user.name)
-#             db_session.add(db_user)
-#             await db_session.commit()
-#             await db_session.refresh(db_user)
-#             return db_user.__dict__
-#         except SQLAlchemyError:
-#             await db_session.rollback()
-#             raise HTTPException(status_code=400, detail="Error while creating user.")
 
 # class ConnectionManager:
 #     def __init__(self):

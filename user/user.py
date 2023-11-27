@@ -17,9 +17,6 @@ router = APIRouter()
 oauth2_scheme = HTTPBearer()
 
 
-
-
-
 def get_current_user_token(token: HTTPAuthorizationCredentials = Depends(oauth2_scheme)) -> str:
     return token.credentials
 
@@ -72,9 +69,8 @@ async def login(user_in: Login):
     async with get_db_session() as db:
         user_result = await db.execute(select(User).filter(User.number == user_in.number))
         user = user_result.scalar_one_or_none()
-
         if not user or not bcrypt.checkpw(user_in.password.encode(), user.hashed_password.encode("utf-8")):
-            return raise_http_exception(status_code=400, message="Incorrect OTP or password")
+            return raise_http_exception(status_code=400, message="Incorrect password")
 
         session_token = create_session_token()
         user_session = UserSession(user_id=user.id, session_token=session_token)

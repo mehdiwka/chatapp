@@ -4,11 +4,13 @@ from fastapi import FastAPI
 from fastapi import WebSocket, WebSocketDisconnect
 
 from database import engine, Base
-from user import  user
+from user import user
 
 app = FastAPI()
 
 app.include_router(user.router)
+
+
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
@@ -18,7 +20,6 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     await engine.disconnect()
-
 
 # class ConnectionManager:
 #     def __init__(self):

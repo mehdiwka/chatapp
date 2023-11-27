@@ -28,7 +28,7 @@ class UserVerifyPassword(UserBase):
     password: str
 
 
-class UserSetPassword(UserBase):
+class UserSetPassword(BaseModel):
     new_password: str
 
 
@@ -40,6 +40,8 @@ class UserSetProfile(UserBase):
 
 class UserForgetPassword(UserBase):
     pass
+
+
 class SessionBase(BaseModel):
     id: int
     user_id: int
@@ -48,4 +50,4 @@ class SessionBase(BaseModel):
     created_at: Optional[datetime.datetime]
 
     class Config:
-        orm_mode = True
+        from_attributes = True

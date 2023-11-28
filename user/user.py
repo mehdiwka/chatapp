@@ -69,7 +69,9 @@ async def login(user_in: Login):
     async with get_db_session() as db:
         user_result = await db.execute(select(User).filter(User.number == user_in.number))
         user = user_result.scalar_one_or_none()
-        if not user or not bcrypt.checkpw(user_in.password.encode(), user.hashed_password.encode("utf-8")):
+        if user is None:
+            return raise_http_exception(status_code=400, message="Phone Number Not Registered")
+        if not bcrypt.checkpw(user_in.password.encode(), user.hashed_password.encode("utf-8")):
             return raise_http_exception(status_code=400, message="Incorrect password")
 
         session_token = create_session_token()

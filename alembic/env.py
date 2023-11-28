@@ -3,6 +3,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 from models import Base
+from settings import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -11,8 +12,12 @@ config = context.config
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 fileConfig(config.config_file_name)
-
-config.set_main_option('sqlalchemy.url', 'postgresql+psycopg2://postgres:123456@127.0.0.1:5432/chat_messenger')
+db_user = settings.DB_USER
+db_host = settings.DB_HOST
+db_port = settings.DB_PORT
+db_name = settings.DB_NAME
+db_pass = settings.DB_PASSWORD
+config.set_main_option('sqlalchemy.url', f'postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}')
 
 target_metadata = Base.metadata
 

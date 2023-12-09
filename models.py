@@ -32,10 +32,10 @@ class Conversation(Base):
     __tablename__ = 'conversations'
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user1_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
-    user1 = relationship('User', foreign_keys=[user1_id])  # direct access to user1
+    user1 = relationship('User', foreign_keys=[user1_id])
 
     user2_id = Column(BigInteger, ForeignKey('users.id'), nullable=False)
-    user2 = relationship('User', foreign_keys=[user2_id])  # direct access to user2
+    user2 = relationship('User', foreign_keys=[user2_id])
 
     messages = relationship('Message', backref='conversation')
 
